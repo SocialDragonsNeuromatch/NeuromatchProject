@@ -1,0 +1,100 @@
+---
+title: "Proposal"
+author: "Deng_Pan"
+date: "2021??1??5??"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+rm(list = ls())
+library(ggplot2);library(plyr);library(MASS);library(reshape2);library(factoextra);library(ggpubr);library(cowplot);library(scatterplot3d);library(dplyr);library(multiway);library(tidyr);library(smacof);library(emmeans);
+theme_white<-theme(axis.line.x = element_line(size=1),axis.line.y = element_line(size=1),
+             axis.ticks.x = element_line(size=1),axis.ticks.y = element_line(size=1),
+             axis.text.x=element_text(colour="black",size=28),
+             axis.text.y=element_text(size=28,face="plain",colour="black"),
+             legend.title = element_text(size=28),
+             legend.text = element_text(size=28),
+             axis.title.y=element_text(size = 28,face="plain"),
+             axis.title.x=element_text(size = 28,face="plain"),
+             panel.border = element_blank(),axis.line = element_line(colour = "black",size=1),
+             panel.grid.major = element_blank(),  
+             panel.grid.minor = element_blank())
+
+X_color = "#22A9DF"
+Y_color = "#DF22A9"
+A_color = "black"
+B_color = "white"
+
+model_amount = 5
+```
+
+```{r}
+dd = read.csv("Table.csv")
+
+d1 = dd$d1
+d2 = dd$d2
+d3 = dd$d3
+d4 = dd$d4
+```
+
+```{r}
+Correlation = c(d1,d2,d3,d4)
+SubNum = length(d1)
+ID = rep(c(1:SubNum),4)
+Model = rep(c("mental", "random", "story", "math"),each = SubNum)
+NewData = data.frame(Model, ID, Correlation)
+```
+
+```{r}
+Fa=aov((Correlation~ Correlation + Error(factor(ID)/Model)),data=NewData)
+summary(Fa)
+
+
+t.test(d1,d2,paired = TRUE)
+t.test(d1,d3,paired = TRUE)
+t.test(d1,d4,paired = TRUE)
+t.test(d2,d3,paired = TRUE)
+t.test(d2,d4,paired = TRUE)
+t.test(d3,d4,paired = TRUE)
+
+
+df = NewData
+mean=aggregate(df$Correlation,by=list(df$Model),FUN=mean)
+sd=aggregate(df$Correlation,by=list(df$Model),FUN=sd) 
+N=aggregate(df$Correlation,by=list(df$Model),FUN=length)
+data2=data.frame(mean,sd=sd$x,N=N$x) 
+colnames(data2)=c("Model","Correlation","sd","N")
+data2$se = data2$sd / sqrt(data2$N) 
+
+data2 = data2[order(data2$Correlation),]
+data2$seq = c(1:4)
+
+data2$Model = data2$Model
+for (m in data2$Model) {
+  df$seq[df$Model==m] = data2$seq[data2$Model==m]
+}
+
+#data2 = data2[data2$Model<17 | data2$Model>40,]
+#df = df[df$Model<17 | df$Model>40,]
+
+
+FIGK = ggplot(data2,aes(x=seq,y=Correlation))+geom_hline(yintercept = 0,size=0.5)+
+  geom_bar(position=position_dodge(),color="black",stat="identity",width=0.9,size=0.5)+
+  geom_line(data = df,aes(x=seq,y=Correlation,group=ID),alpha=0.2,size=0.5,color="gray")+
+  geom_point(data = df,aes(x=seq,y=Correlation,group=ID),alpha=0.2,size=2,color="gray")+
+  geom_errorbar(aes(ymin=Correlation-se,ymax=Correlation+se),width=0.1,size=0.8,position=position_dodge(0.9))+
+  ylab("Correlation with resting state
+       functional connectivity matrix")+xlab("")+
+  scale_fill_manual(values=c(X_color,Y_color))+
+  scale_x_continuous(breaks = data2$seq,labels = data2$Model)+
+  theme_bw()+
+  theme_white
+ 
+jpeg(file = "FIGK.jpg",width =4000,height = 2800,units = "px",res =300)
+FIGK
+dev.off()
+FIGK
+
+```
